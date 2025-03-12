@@ -148,8 +148,9 @@
         const clickSound = document.getElementById('clickSound');
         let musicTimeout;
 
+        // Основные функции
         function updateCounter() {
-            document.getElementById('counter').textContent = Math.floor(gameState.score);
+            document.getElementById('counter').textContent = Math.floor(gameState.score).toLocaleString();
         }
 
         function handleSpriteClick() {
@@ -169,11 +170,8 @@
         }
 
         function calculateClickPower() {
-            let power = 1;
-            clickUpgrades.forEach((upgrade, index) => {
-                power += upgrade.bonus * gameState.clickLevels[index];
-            });
-            return power;
+            return 1 + clickUpgrades.reduce((sum, upgrade, index) => 
+                sum + (upgrade.bonus * gameState.clickLevels[index]), 0);
         }
 
         function calculateAutoPower() {
@@ -182,19 +180,22 @@
         }
 
         function updateStats() {
-            document.getElementById('click-bonus').textContent = calculateClickPower();
-            document.getElementById('auto-bonus').textContent = calculateAutoPower();
+            document.getElementById('click-bonus').textContent = calculateClickPower().toLocaleString();
+            document.getElementById('auto-bonus').textContent = calculateAutoPower().toLocaleString();
         }
 
         function buyUpgrade(type, index) {
             const upgrades = type === 'click' ? clickUpgrades : autoUpgrades;
             const levels = type === 'click' ? gameState.clickLevels : gameState.autoLevels;
-            const cost = upgrades[index].cost * (levels[index] + 1);
+            
+            const currentLevel = levels[index];
+            const cost = upgrades[index].cost * (currentLevel + 1);
 
             if (gameState.score >= cost) {
                 gameState.score -= cost;
                 levels[index]++;
                 gameState.totalPurchases++;
+                
                 updateCounter();
                 updateStats();
                 updateUpgradeButtons();
@@ -203,10 +204,9 @@
         }
 
         function updateSprite() {
-            const spriteIndex = Math.min(
-                clickUpgrades.findIndex(u => u.sprite > gameState.totalPurchases), 4
-            ) + 1;
-            document.getElementById('sprite').src = `image${spriteIndex}.png`;
+            const unlockedSprites = clickUpgrades.filter(u => gameState.totalPurchases >= u.sprite);
+            const spriteIndex = unlockedSprites.length + 1;
+            document.getElementById('sprite').src = `image${Math.min(spriteIndex, 6)}.png`;
         }
 
         function updateUpgradeButtons() {
@@ -215,8 +215,8 @@
                 div.innerHTML = '';
                 
                 upgrades.forEach((upgrade, index) => {
-                    const level = levels[index];
-                    const nextCost = upgrade.cost * (level + 1);
+                    const currentLevel = levels[index];
+                    const nextCost = upgrade.cost * (currentLevel + 1);
                     const canBuy = gameState.score >= nextCost;
                     const isUnlocked = index === 0 || levels[index-1] > 0;
 
@@ -225,10 +225,10 @@
                     button.disabled = !isUnlocked || !canBuy;
                     
                     button.innerHTML = isUnlocked 
-                        ? `${upgrade.name} (Ур. ${level + 1})<br>+${upgrade.bonus} ${type}<br>Стоимость: ${nextCost}`
+                        ? `${upgrade.name} (Ур. ${currentLevel + 1})<br>+${upgrade.bonus} ${type}<br>Стоимость: ${nextCost.toLocaleString()}`
                         : `???<br>???<br>Стоимость: ???`;
 
-                    if (isUnlocked && canBuy) {
+                    if (isUnlocked) {
                         button.onclick = () => buyUpgrade(type, index);
                     }
 
@@ -249,18 +249,20 @@
         }
 
         function initGame() {
-            updateUpgradeButtons();
-            updateStats();
+            // Инициализация обработчиков
+            document.getElementById('sprite').addEventListener('click', handleSpriteClick);
             
-            // Автоматический доход
+            // Запуск авто-дохода
             setInterval(() => {
                 gameState.score += calculateAutoPower();
                 updateCounter();
                 updateStats();
+                updateUpgradeButtons();
             }, 1000);
-            
-            // Обработчик клика
-            document.getElementById('sprite').addEventListener('click', handleSpriteClick);
+
+            // Первоначальная отрисовка
+            updateUpgradeButtons();
+            updateStats();
         }
 
         initGame();

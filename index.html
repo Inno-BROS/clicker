@@ -184,16 +184,13 @@
             document.getElementById('auto-bonus').textContent = calculateAutoPower().toLocaleString();
         }
 
-        function buyUpgrade(type, index) {
-            const upgrades = type === 'click' ? clickUpgrades : autoUpgrades;
-            const levels = type === 'click' ? gameState.clickLevels : gameState.autoLevels;
-            
-            const currentLevel = levels[index];
-            const cost = upgrades[index].cost * (currentLevel + 1);
+        function buyClickUpgrade(index) {
+            const currentLevel = gameState.clickLevels[index];
+            const cost = clickUpgrades[index].cost * (currentLevel + 1);
 
             if (gameState.score >= cost) {
                 gameState.score -= cost;
-                levels[index]++;
+                gameState.clickLevels[index]++;
                 gameState.totalPurchases++;
                 
                 updateCounter();
@@ -203,6 +200,19 @@
             }
         }
 
+        function buyAutoUpgrade(index) {
+            const currentLevel = gameState.autoLevels[index];
+            const cost = autoUpgrades[index].cost * (currentLevel + 1);
+
+            if (gameState.score >= cost) {
+                gameState.score -= cost;
+                gameState.autoLevels[index]++;
+                
+                updateCounter();
+                updateStats();
+                updateUpgradeButtons();
+            }
+        }
         function updateSprite() {
             const unlockedSprites = clickUpgrades.filter(u => gameState.totalPurchases >= u.sprite);
             const spriteIndex = unlockedSprites.length + 1;
@@ -210,34 +220,57 @@
         }
 
         function updateUpgradeButtons() {
-            const updateButtons = (upgrades, levels, containerId, type) => {
-                const div = document.getElementById(containerId);
+            const updateClickButtons = () => {
+                const div = document.getElementById('click-upgrades');
                 div.innerHTML = '';
                 
-                upgrades.forEach((upgrade, index) => {
-                    const currentLevel = levels[index];
+                clickUpgrades.forEach((upgrade, index) => {
+                    const currentLevel = gameState.clickLevels[index];
                     const nextCost = upgrade.cost * (currentLevel + 1);
                     const canBuy = gameState.score >= nextCost;
-                    const isUnlocked = index === 0 || levels[index-1] > 0;
+                    const isUnlocked = index === 0 || gameState.clickLevels[index-1] > 0;
 
                     const button = document.createElement('button');
                     button.className = `upgrade-btn ${!isUnlocked ? 'locked' : ''}`;
                     button.disabled = !isUnlocked || !canBuy;
                     
                     button.innerHTML = isUnlocked 
-                        ? `${upgrade.name} (Ур. ${currentLevel + 1})<br>+${upgrade.bonus} ${type}<br>Стоимость: ${nextCost.toLocaleString()}`
+                        ? `${upgrade.name} (Ур. ${currentLevel + 1})<br>+${upgrade.bonus} за клик<br>Стоимость: ${nextCost.toLocaleString()}`
                         : `???<br>???<br>Стоимость: ???`;
 
-                    if (isUnlocked) {
-                        button.onclick = () => buyUpgrade(type, index);
+                    if (isUnlocked && canBuy) {
+                        button.onclick = () => buyClickUpgrade(index);
                     }
 
                     div.appendChild(button);
                 });
             };
 
-            updateButtons(clickUpgrades, gameState.clickLevels, 'click-upgrades', 'за клик');
-            updateButtons(autoUpgrades, gameState.autoLevels, 'auto-upgrades', 'в сек');
+            const updateAutoButtons = () => {
+                const div = document.getElementById('auto-upgrades');
+                div.innerHTML = '';
+                
+                autoUpgrades.forEach((upgrade, index) => {
+                    const currentLevel = gameState.autoLevels[index];
+                    const nextCost = upgrade.cost * (currentLevel + 1);
+                    const canBuy = gameState.score >= nextCost;
+
+                    const button = document.createElement('button');
+                    button.className = `upgrade-btn`;
+                    button.disabled = !canBuy;
+                    
+                    button.innerHTML = `${upgrade.name} (Ур. ${currentLevel + 1})<br>+${upgrade.bonus} в сек<br>Стоимость: ${nextCost.toLocaleString()}`;
+
+                    if (canBuy) {
+                        button.onclick = () => buyAutoUpgrade(index);
+                    }
+
+                    div.appendChild(button);
+                });
+            };
+
+            updateClickButtons();
+            updateAutoButtons();
         }
 
         function resetMusicTimeout() {
@@ -249,10 +282,8 @@
         }
 
         function initGame() {
-            // Инициализация обработчиков
             document.getElementById('sprite').addEventListener('click', handleSpriteClick);
             
-            // Запуск авто-дохода
             setInterval(() => {
                 gameState.score += calculateAutoPower();
                 updateCounter();
@@ -260,7 +291,6 @@
                 updateUpgradeButtons();
             }, 1000);
 
-            // Первоначальная отрисовка
             updateUpgradeButtons();
             updateStats();
         }

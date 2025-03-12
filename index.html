@@ -17,7 +17,7 @@
             overflow: hidden;
         }
         #counter {
-            margin-top: 30px; /* Отступ от спрайта */
+            margin-top: 30px;
             font-size: 48px;
             font-weight: bold;
             text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
@@ -84,6 +84,19 @@
         .purchased {
             background: rgba(0, 255, 0, 0.1) !important;
         }
+        .stats {
+            margin-top: 20px;
+            font-size: 24px;
+            text-align: center;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
+        
+        .stats div {
+            margin: 10px 0;
+            padding: 8px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 5px;
+        }
     </style>
 </head>
 <body>
@@ -92,9 +105,8 @@
 
     <div class="container">
         <div class="left-panel">
-            <img id="sprite" src="image1.png" onclick="handleSpriteClick()">
+            <img id="sprite" src="image1.png">
             <div id="counter">0</div>
-            <!-- Добавляем блок статистики -->
             <div class="stats">
                 <div>За клик: +<span id="click-bonus">1</span></div>
                 <div>В секунду: +<span id="auto-bonus">0</span></div>
@@ -109,7 +121,6 @@
     </div>
 
     <script>
-        // Модифицируем структуру улучшений
         const clickUpgrades = [
             { name: "Каменный молот", cost: 10, bonus: 1, sprite: 2 },
             { name: "Железная кувалда", cost: 100, bonus: 5, sprite: 3 },
@@ -133,10 +144,36 @@
             totalPurchases: 0
         };
 
-        // Обновляем функции расчета
+        const backgroundMusic = document.getElementById('backgroundMusic');
+        const clickSound = document.getElementById('clickSound');
+        let musicTimeout;
+
+        function updateCounter() {
+            document.getElementById('counter').textContent = Math.floor(gameState.score);
+        }
+
+        function handleSpriteClick() {
+            const clickPower = calculateClickPower();
+            gameState.score += clickPower;
+            
+            updateCounter();
+            updateStats();
+            
+            clickSound.currentTime = 0;
+            clickSound.play();
+            
+            if (backgroundMusic.paused) {
+                backgroundMusic.play();
+            }
+            resetMusicTimeout();
+        }
+
         function calculateClickPower() {
-            return 1 + clickUpgrades.reduce((sum, upgrade, index) => 
-                sum + (upgrade.bonus * gameState.clickLevels[index]), 0);
+            let power = 1;
+            clickUpgrades.forEach((upgrade, index) => {
+                power += upgrade.bonus * gameState.clickLevels[index];
+            });
+            return power;
         }
 
         function calculateAutoPower() {
@@ -149,7 +186,6 @@
             document.getElementById('auto-bonus').textContent = calculateAutoPower();
         }
 
-        // Модифицируем функцию покупки
         function buyUpgrade(type, index) {
             const upgrades = type === 'click' ? clickUpgrades : autoUpgrades;
             const levels = type === 'click' ? gameState.clickLevels : gameState.autoLevels;
@@ -166,15 +202,13 @@
             }
         }
 
-        // Добавляем функцию обновления спрайта
         function updateSprite() {
             const spriteIndex = Math.min(
-                clickUpgrades.findIndex(u => u.sprite > gameState.totalPurchases), 5
+                clickUpgrades.findIndex(u => u.sprite > gameState.totalPurchases), 4
             ) + 1;
             document.getElementById('sprite').src = `image${spriteIndex}.png`;
         }
 
-        // Модифицируем функцию обновления кнопок
         function updateUpgradeButtons() {
             const updateButtons = (upgrades, levels, containerId, type) => {
                 const div = document.getElementById(containerId);
@@ -206,16 +240,30 @@
             updateButtons(autoUpgrades, gameState.autoLevels, 'auto-upgrades', 'в сек');
         }
 
-        // Обновляем интервал для авто-дохода
-        setInterval(() => {
-            gameState.score += calculateAutoPower();
-            updateCounter();
-            updateStats();
-        }, 1000);
+        function resetMusicTimeout() {
+            clearTimeout(musicTimeout);
+            musicTimeout = setTimeout(() => {
+                backgroundMusic.pause();
+                backgroundMusic.currentTime = 0;
+            }, 5000);
+        }
 
-        // Инициализация
-        updateUpgradeButtons();
-        updateStats();
+        function initGame() {
+            updateUpgradeButtons();
+            updateStats();
+            
+            // Автоматический доход
+            setInterval(() => {
+                gameState.score += calculateAutoPower();
+                updateCounter();
+                updateStats();
+            }, 1000);
+            
+            // Обработчик клика
+            document.getElementById('sprite').addEventListener('click', handleSpriteClick);
+        }
+
+        initGame();
     </script>
 </body>
 </html>

@@ -250,7 +250,7 @@
 
         function updateSprite() {
             const maxUnlocked = clickUpgrades
-                .reduce((max, u) => Math.max(21, gameState.totalPurchases), 0); // Здесь максимальный номер спрайта
+                .reduce((max, u) => Math.min(19, gameState.totalPurchases), 0); // Здесь максимальный номер спрайта - 2
             
             const spriteIndex = maxUnlocked + 2;
             document.getElementById('sprite').src = `image${spriteIndex}`;

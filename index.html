@@ -6,15 +6,21 @@
         body {
             margin: 0;
             padding: 20px;
-            background-image: url('background_image.jpg');
-            background-size: cover;
-            background-position: center;
             color: white;
             font-family: Arial, sans-serif;
             display: flex;
             justify-content: space-between;
             height: 100vh;
             overflow: hidden;
+            position: relative;
+        }
+        #backgroundVideo, #backgroundImage {
+            position: fixed;
+            right: 0;
+            bottom: 0;
+            min-width: 100%;
+            min-height: 100%;
+            z-index: -1;
         }
         #counter {
             margin-top: 30px;
@@ -22,7 +28,6 @@
             font-weight: bold;
             text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
         }
-
         .container {
             display: flex;
             width: 100%;
@@ -36,25 +41,21 @@
             justify-content: center; 
             height: 100vh;
         }
-
         #sprite {
             cursor: pointer;
             width: 200px;
             height: 200px;
             transition: transform 0.1s;
         }
-
         #sprite:active {
             transform: scale(0.95);
         }
-
         .right-panel {
             width: 50%;
             padding: 20px;
             background: rgba(0, 0, 0, 0.7);
             overflow-y: auto;
         }
-
         .upgrade-btn {
             display: block;
             width: 100%;
@@ -66,13 +67,12 @@
             color: white;
             cursor: pointer;
             text-align: left;
+            transition: all 0.3s;
         }
-
         .upgrade-btn:disabled {
             background: rgba(255, 255, 255, 0.05);
             cursor: not-allowed;
         }
-
         .upgrade-btn:hover:not(:disabled) {
             background: rgba(255, 255, 255, 0.2);
         }
@@ -80,7 +80,6 @@
             opacity: 0.7;
             filter: grayscale(80%);
         }
-
         .purchased {
             background: rgba(0, 255, 0, 0.1) !important;
         }
@@ -90,22 +89,35 @@
             text-align: center;
             text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
         }
-        
         .stats div {
             margin: 10px 0;
             padding: 8px;
             background: rgba(255,255,255,0.1);
             border-radius: 5px;
         }
+        @keyframes purchaseFlash {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        .purchase-flash {
+            animation: purchaseFlash 0.3s ease-in-out;
+        }
+        @keyframes floatUp {
+            from { transform: translateY(0); opacity: 1; }
+            to { transform: translateY(-50px); opacity: 0; }
+        }
     </style>
 </head>
 <body>
-    <audio id="backgroundMusic" src="music.mp3"></audio>
-    <audio id="clickSound" src="click.mp3"></audio>
+    <audio id="backgroundMusic" src="music"></audio>
+    <audio id="clickSound" src="click"></audio>
+
+    <img id="backgroundImage" src="background_image" style="display: none;">
 
     <div class="container">
         <div class="left-panel">
-            <img id="sprite" src="image1.png">
+            <img id="sprite" src="image1">
             <div id="counter">0</div>
             <div class="stats">
                 <div>За клик: +<span id="click-bonus">1</span></div>
@@ -121,26 +133,12 @@
     </div>
 
     <script>
-        const clickUpgrades = [
-            { name: "Каменный молот", cost: 10, bonus: 1, sprite: 2 },
-            { name: "Железная кувалда", cost: 100, bonus: 5, sprite: 3 },
-            { name: "Золотой топор", cost: 1000, bonus: 50, sprite: 4 },
-            { name: "Алмазный бур", cost: 10000, bonus: 200, sprite: 5 },
-            { name: "Плазменный удар", cost: 100000, bonus: 1000, sprite: 6 }
-        ];
-
-        const autoUpgrades = [
-            { name: "Рабочий-новичок", cost: 50, bonus: 1 },
-            { name: "Механическая рука", cost: 500, bonus: 10 },
-            { name: "Конвейерная лента", cost: 5000, bonus: 50 },
-            { name: "Роботизированный завод", cost: 50000, bonus: 200 },
-            { name: "ИИ фабрика", cost: 500000, bonus: 1000 }
-        ];
-
+        let clickUpgrades = [];
+        let autoUpgrades = [];
         let gameState = {
             score: 0,
-            clickLevels: new Array(clickUpgrades.length).fill(0),
-            autoLevels: new Array(autoUpgrades.length).fill(0),
+            clickLevels: [],
+            autoLevels: [],
             totalPurchases: 0
         };
 
@@ -148,9 +146,46 @@
         const clickSound = document.getElementById('clickSound');
         let musicTimeout;
 
-        // Основные функции
-        function updateCounter() {
-            document.getElementById('counter').textContent = Math.floor(gameState.score).toLocaleString();
+        function initGame() {
+            clickUpgrades = [
+                { name: "Пососать соску", cost: 20, bonus: 1, sprite: 2 },
+                { name: "Поиграть с друзьями в злодеев", cost: 200, bonus: 5, sprite: 3 },
+                { name: "Помочь злодею", cost: 2000, bonus: 50, sprite: 4 },
+                { name: "Совершить обычное злодейство", cost: 20000, bonus: 200, sprite: 5 },
+                { name: "Воплотить хитрый план", cost: 200000, bonus: 1000, sprite: 6 },
+                { name: "Совершить грандиозное злодейство", cost: 2000000, bonus: 5000, sprite: 7 },
+                { name: "Захватить планету", cost: 20000000, bonus: 10000, sprite: 8 }
+            ];
+
+            autoUpgrades = [
+                { name: "Калькулятор", cost: 10, bonus: 1 },
+                { name: "Кнопочный телефон", cost: 100, bonus: 10 },
+                { name: "Смартфон", cost: 1000, bonus: 50 },
+                { name: "Ноутбук", cost: 10000, bonus: 200 },
+                { name: "Компьютер", cost: 100000, bonus: 1000 },
+                { name: "Сервер", cost: 1000000, bonus: 5000 },
+                { name: "Суперкомпьютер", cost: 10000000, bonus: 20000 }
+            ];
+
+            gameState.score = 0;
+
+            gameState.clickLevels = new Array(clickUpgrades.length).fill(0);
+            gameState.autoLevels = new Array(autoUpgrades.length).fill(0);
+
+            const img = document.getElementById('backgroundImage');
+            img.style.display = 'block';
+
+            document.getElementById('sprite').addEventListener('click', handleSpriteClick);
+            
+            setInterval(() => {
+                gameState.score += calculateAutoPower();
+                updateCounter();
+                updateStats();
+                updateUpgradeButtons();
+            }, 1000);
+
+            updateUpgradeButtons();
+            updateStats();
         }
 
         function handleSpriteClick() {
@@ -163,28 +198,21 @@
             clickSound.currentTime = 0;
             clickSound.play();
             
-            if (backgroundMusic.paused) {
-                backgroundMusic.play();
-            }
+            if (backgroundMusic.paused) backgroundMusic.play();
             resetMusicTimeout();
         }
 
         function calculateClickPower() {
-            return 1 + clickUpgrades.reduce((sum, upgrade, index) => 
-                sum + (upgrade.bonus * gameState.clickLevels[index]), 0);
+            return 1 + clickUpgrades.reduce((sum, u, i) => 
+                sum + (u.bonus * gameState.clickLevels[i]), 0);
         }
 
         function calculateAutoPower() {
-            return autoUpgrades.reduce((sum, upgrade, index) => 
-                sum + (upgrade.bonus * gameState.autoLevels[index]), 0);
+            return autoUpgrades.reduce((sum, u, i) => 
+                sum + (u.bonus * gameState.autoLevels[i]), 0);
         }
 
-        function updateStats() {
-            document.getElementById('click-bonus').textContent = calculateClickPower().toLocaleString();
-            document.getElementById('auto-bonus').textContent = calculateAutoPower().toLocaleString();
-        }
-
-        function buyClickUpgrade(index) {
+        function buyClickUpgrade(index, button) {
             const currentLevel = gameState.clickLevels[index];
             const cost = clickUpgrades[index].cost * (currentLevel + 1);
 
@@ -193,84 +221,89 @@
                 gameState.clickLevels[index]++;
                 gameState.totalPurchases++;
                 
-                updateCounter();
-                updateStats();
-                updateUpgradeButtons();
+                button.classList.add('purchase-flash');
+                setTimeout(() => button.classList.remove('purchase-flash'), 300);
+                createPurchaseEffect(button);
+                
                 updateSprite();
+                updateAll();
             }
         }
 
-        function buyAutoUpgrade(index) {
+        function buyAutoUpgrade(index, button) {
             const currentLevel = gameState.autoLevels[index];
             const cost = autoUpgrades[index].cost * (currentLevel + 1);
 
             if (gameState.score >= cost) {
                 gameState.score -= cost;
                 gameState.autoLevels[index]++;
+                gameState.totalPurchases++;
                 
-                updateCounter();
-                updateStats();
-                updateUpgradeButtons();
+                button.classList.add('purchase-flash');
+                setTimeout(() => button.classList.remove('purchase-flash'), 300);
+                createPurchaseEffect(button);
+                
+                updateSprite();
+                updateAll();
             }
         }
+
         function updateSprite() {
-            const unlockedSprites = clickUpgrades.filter(u => gameState.totalPurchases >= u.sprite);
-            const spriteIndex = unlockedSprites.length + 1;
-            document.getElementById('sprite').src = `image${Math.min(spriteIndex, 6)}.png`;
+            const maxUnlocked = clickUpgrades
+                .reduce((max, u) => Math.max(21, gameState.totalPurchases), 0); // Здесь максимальный номер спрайта
+            
+            const spriteIndex = maxUnlocked + 2;
+            document.getElementById('sprite').src = `image${spriteIndex}`;
         }
 
         function updateUpgradeButtons() {
-            const updateClickButtons = () => {
-                const div = document.getElementById('click-upgrades');
-                div.innerHTML = '';
-                
-                clickUpgrades.forEach((upgrade, index) => {
-                    const currentLevel = gameState.clickLevels[index];
-                    const nextCost = upgrade.cost * (currentLevel + 1);
-                    const canBuy = gameState.score >= nextCost;
-                    const isUnlocked = index === 0 || gameState.clickLevels[index-1] > 0;
+            const clickDiv = document.getElementById('click-upgrades');
+            clickDiv.innerHTML = clickUpgrades.map((u, i) => {
+                const lvl = gameState.clickLevels[i];
+                const cost = u.cost * (lvl + 1);
+                const canBuy = gameState.score >= cost;
+                const unlocked = i === 0 || gameState.clickLevels[i-1] > 0;
 
-                    const button = document.createElement('button');
-                    button.className = `upgrade-btn ${!isUnlocked ? 'locked' : ''}`;
-                    button.disabled = !isUnlocked || !canBuy;
-                    
-                    button.innerHTML = isUnlocked 
-                        ? `${upgrade.name} (Ур. ${currentLevel + 1})<br>+${upgrade.bonus} за клик<br>Стоимость: ${nextCost.toLocaleString()}`
-                        : `???<br>???<br>Стоимость: ???`;
+                return `<button class="upgrade-btn ${!unlocked ? 'locked' : ''} ${lvl > 0 ? 'purchased' : ''}" 
+                    ${!unlocked || !canBuy ? 'disabled' : ''}
+                    onclick="buyClickUpgrade(${i}, this)">
+                    ${unlocked ? 
+                        `${u.name} (Ур. ${lvl+1})<br>+${u.bonus} за клик<br>Стоимость: ${cost.toLocaleString()}` : 
+                        `???<br>???<br>Стоимость: ???`}
+                </button>`;
+            }).join('');
 
-                    if (isUnlocked && canBuy) {
-                        button.onclick = () => buyClickUpgrade(index);
-                    }
+            const autoDiv = document.getElementById('auto-upgrades');
+            autoDiv.innerHTML = autoUpgrades.map((u, i) => {
+                const lvl = gameState.autoLevels[i];
+                const cost = u.cost * (lvl + 1);
+                const canBuy = gameState.score >= cost;
+                const unlocked = i === 0 || gameState.autoLevels[i-1] > 0;
 
-                    div.appendChild(button);
-                });
-            };
+                return `<button class="upgrade-btn ${!unlocked ? 'locked' : ''} ${lvl > 0 ? 'purchased' : ''}" 
+                    ${!unlocked || !canBuy ? 'disabled' : ''}
+                    onclick="buyAutoUpgrade(${i}, this)">
+                    ${unlocked ? 
+                        `${u.name} (Ур. ${lvl+1})<br>+${u.bonus}/сек<br>Стоимость: ${cost.toLocaleString()}` : 
+                        `???<br>???<br>Стоимость: ???`}
+                </button>`;
+            }).join('');
+        }
 
-            const updateAutoButtons = () => {
-                const div = document.getElementById('auto-upgrades');
-                div.innerHTML = '';
-                
-                autoUpgrades.forEach((upgrade, index) => {
-                    const currentLevel = gameState.autoLevels[index];
-                    const nextCost = upgrade.cost * (currentLevel + 1);
-                    const canBuy = gameState.score >= nextCost;
-
-                    const button = document.createElement('button');
-                    button.className = `upgrade-btn`;
-                    button.disabled = !canBuy;
-                    
-                    button.innerHTML = `${upgrade.name} (Ур. ${currentLevel + 1})<br>+${upgrade.bonus} в сек<br>Стоимость: ${nextCost.toLocaleString()}`;
-
-                    if (canBuy) {
-                        button.onclick = () => buyAutoUpgrade(index);
-                    }
-
-                    div.appendChild(button);
-                });
-            };
-
-            updateClickButtons();
-            updateAutoButtons();
+        function createPurchaseEffect(button) {
+            const rect = button.getBoundingClientRect();
+            const effect = document.createElement('div');
+            effect.style.position = 'fixed';
+            effect.style.left = rect.left + 'px';
+            effect.style.top = rect.top + 'px';
+            effect.style.color = '#ffd700';
+            effect.style.pointerEvents = 'none';
+            effect.style.animation = 'floatUp 1s';
+            effect.textContent = '★ Улучшено!';
+            document.body.appendChild(effect);
+            setTimeout(() => effect.remove(), 1000);
+            const audio = new Audio('purchase.mp3');
+            audio.play();
         }
 
         function resetMusicTimeout() {
@@ -281,18 +314,19 @@
             }, 5000);
         }
 
-        function initGame() {
-            document.getElementById('sprite').addEventListener('click', handleSpriteClick);
-            
-            setInterval(() => {
-                gameState.score += calculateAutoPower();
-                updateCounter();
-                updateStats();
-                updateUpgradeButtons();
-            }, 1000);
-
-            updateUpgradeButtons();
+        function updateAll() {
+            updateCounter();
             updateStats();
+            updateUpgradeButtons();
+        }
+
+        function updateCounter() {
+            document.getElementById('counter').textContent = Math.floor(gameState.score).toLocaleString();
+        }
+
+        function updateStats() {
+            document.getElementById('click-bonus').textContent = calculateClickPower().toLocaleString();
+            document.getElementById('auto-bonus').textContent = calculateAutoPower().toLocaleString();
         }
 
         initGame();
